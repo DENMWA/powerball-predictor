@@ -1,5 +1,4 @@
 
-# app.py (refactored to use visual_diagnostics.py for Mode C)
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -42,7 +41,15 @@ if uploaded_file is not None:
 
             elif mode == "Mode C - Ψ★ Model 2.0":
                 historical_draws = data.iloc[:, 1:8].values.tolist()
-                past_pbs = data.iloc[:, 8].tolist()
+
+                # Robust Powerball extraction
+                try:
+                    past_pbs = pd.to_numeric(data["Powerball"], errors='coerce').dropna().astype(int).tolist()
+                    st.write("Sample Powerballs:", past_pbs[:10])
+                except Exception as e:
+                    st.warning("Could not read Powerball column correctly.")
+                    past_pbs = []
+
                 result_df = psi_star_generate(historical_draws, past_pbs, num_predictions=200)
                 st.success("Ψ★(Ω) Predictions Generated Successfully!")
 
