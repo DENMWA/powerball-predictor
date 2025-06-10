@@ -26,7 +26,9 @@ def drake_d1_score(candidate_set):
 
 def optimize_powerball(past_powerballs):
     if not past_powerballs or len(past_powerballs) < 5:
-        return random.randint(1, 20)
+        chosen = random.randint(1, 20)
+        print("Fallback PB:", chosen)
+        return chosen
 
     freq = pd.Series(past_powerballs).value_counts().reindex(range(1, 21), fill_value=0)
     gaps = pd.Series({
@@ -36,8 +38,15 @@ def optimize_powerball(past_powerballs):
     })
 
     score = freq + 1.5 * gaps
+    if score.sum() == 0 or score.isnull().any():
+        chosen = random.randint(1, 20)
+        print("Uniform fallback PB:", chosen)
+        return chosen
+
     probs = softmax(score)
-    return int(np.random.choice(range(1, 21), p=probs))
+    chosen = int(np.random.choice(range(1, 21), p=probs))
+    print("Optimized PB chosen:", chosen)
+    return chosen
 
 def evolve_sets(base_sets, historical_draws, generations=3):
     population = base_sets[:]
