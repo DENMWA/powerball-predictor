@@ -33,14 +33,14 @@ def optimize_powerball(past_powerballs):
     if score.sum() == 0 or score.isnull().any():
         return random.randint(1, 20)
 
-    probs = softmax(score)
+    probs = softmax(score + np.random.normal(0, 0.1, size=score.shape))
     return int(np.random.choice(range(1, 21), p=probs))
 
 def softmax_sampler(scored_sets, temperature=3.0):
     scores = np.array([s[1] for s in scored_sets])
-    probs = softmax(temperature * scores)
-    selected_index = np.random.choice(len(scored_sets), p=probs)
-    return scored_sets[selected_index][0]
+    jitter = np.random.normal(0, 1.5, size=len(scores))  # inject randomness
+    probs = softmax(temperature * scores + jitter)
+    return scored_sets[np.random.choice(len(scored_sets), p=probs)][0]
 
 def evolve_sets(base_sets, historical_draws, generations=2):
     population = base_sets[:]
@@ -59,22 +59,24 @@ def evolve_sets(base_sets, historical_draws, generations=2):
     return population
 
 def generate_predictions(historical_draws, past_powerballs, num_predictions=200):
-    base_candidates = [sorted(random.sample(range(1, 46), 7)) for _ in range(num_predictions * 2)]
+    base_candidates = [sorted(random.sample(range(1, 46), 7)) for _ in range(num_predictions * 3)]
     scored = [(s, psi_score(s, historical_draws) + drake_d1_score(s)) for s in base_candidates]
+
+    # Softmax sampling with jitter
     selected_sets = [softmax_sampler(scored) for _ in range(num_predictions)]
     evolved_sets = evolve_sets(selected_sets, historical_draws)
 
     predictions = []
     for s in evolved_sets[:num_predictions]:
         powerball = optimize_powerball(past_powerballs)
-        record = {
+        predictions.append({
             "Main Numbers": s,
             "Powerball": powerball,
             "Ψ Score": round(psi_score(s, historical_draws), 3),
             "D1 Score": round(drake_d1_score(s), 3)
-        }
-        predictions.append(record)
+        })
 
     df = pd.DataFrame(predictions)
-    print(df.head())  # Final debug print to confirm integrity
+    print("Sample predictions:")
+    print(df.head(5))
     return df
