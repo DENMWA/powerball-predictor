@@ -24,19 +24,17 @@ def drake_d1_score(candidate_set):
     gap_score = -np.std(np.diff(sorted(candidate_set)))
     return (len(set(candidate_set)) ** 1.2) + balance_score + gap_score
 
-def calculate_gaps(history, max_number=20):
-    last_seen = {pb: -1 for pb in range(1, max_number + 1)}
-    gaps = {pb: len(history) for pb in last_seen}
-    for i in reversed(range(len(history))):
-        pb = history[i]
-        if last_seen[pb] == -1:
-            last_seen[pb] = i
-            gaps[pb] = len(history) - i
-    return pd.Series(gaps)
-
 def optimize_powerball(past_powerballs):
+    if not past_powerballs or len(past_powerballs) < 5:
+        return random.randint(1, 20)
+
     freq = pd.Series(past_powerballs).value_counts().reindex(range(1, 21), fill_value=0)
-    gaps = calculate_gaps(list(past_powerballs))
+    gaps = pd.Series({
+        pb: (len(past_powerballs) - max(i for i, x in enumerate(past_powerballs) if x == pb))
+        if pb in past_powerballs else len(past_powerballs)
+        for pb in range(1, 21)
+    })
+
     score = freq + 1.5 * gaps
     probs = softmax(score)
     return int(np.random.choice(range(1, 21), p=probs))
