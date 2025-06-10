@@ -1,12 +1,18 @@
-# app.py (updated with Mode C: Ψ★ Model 2.0)
 
+# app.py (refactored to use visual_diagnostics.py for Mode C)
 import streamlit as st
 import pandas as pd
 import numpy as np
 import random
+
 from constructive_predict_engine import predict_top_sets as predict_b
 from predict_engine import predict_top_sets as predict_a
 from psi_star_engine import generate_predictions as psi_star_generate
+from visual_diagnostics import (
+    plot_psi_score_distribution,
+    plot_d1_score_distribution,
+    plot_number_frequency_heatmap
+)
 
 st.set_page_config(page_title="Ψ★ Powerball Predictor", layout="wide")
 st.title("Ψ(Ω) Powerball Predictor")
@@ -39,6 +45,11 @@ if uploaded_file is not None:
                 past_pbs = data.iloc[:, 8].tolist()
                 result_df = psi_star_generate(historical_draws, past_pbs, num_predictions=200)
                 st.success("Ψ★(Ω) Predictions Generated Successfully!")
+
+                # Visual diagnostics for Mode C
+                plot_psi_score_distribution(result_df)
+                plot_d1_score_distribution(result_df)
+                plot_number_frequency_heatmap(result_df)
 
             st.dataframe(result_df)
             st.download_button("Download Predictions as CSV", result_df.to_csv(index=False), "predictions.csv")

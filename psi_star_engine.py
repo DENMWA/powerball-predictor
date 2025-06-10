@@ -1,10 +1,8 @@
 
-# Prototype Engine for Ψ★(Ω) Model 2.0
 import numpy as np
 import pandas as pd
 import random
 from scipy.special import softmax
-from itertools import combinations
 
 def psi_score(candidate_set, historical_draws):
     fft_score = np.sum(np.abs(np.fft.fft([sum(draw) for draw in historical_draws])[:7]))
