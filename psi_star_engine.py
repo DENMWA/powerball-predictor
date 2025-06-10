@@ -12,12 +12,6 @@ def psi_score(candidate_set, historical_draws):
     noise = random.uniform(0, 1)
     return fft_score + entropy_score + spacing_penalty + noise
 
-def softmax_sampler(scored_sets, temperature=3.0):
-    scores = np.array([s[1] for s in scored_sets])
-    probs = softmax(temperature * scores)
-    selected_index = np.random.choice(len(scored_sets), p=probs)
-    return scored_sets[selected_index][0]
-
 def drake_d1_score(candidate_set):
     even_count = sum(1 for n in candidate_set if n % 2 == 0)
     balance_score = -abs(even_count - 3.5)
@@ -26,9 +20,7 @@ def drake_d1_score(candidate_set):
 
 def optimize_powerball(past_powerballs):
     if not past_powerballs or len(past_powerballs) < 5:
-        chosen = random.randint(1, 20)
-        print("Fallback PB:", chosen)
-        return chosen
+        return random.randint(1, 20)
 
     freq = pd.Series(past_powerballs).value_counts().reindex(range(1, 21), fill_value=0)
     gaps = pd.Series({
@@ -39,16 +31,18 @@ def optimize_powerball(past_powerballs):
 
     score = freq + 1.5 * gaps
     if score.sum() == 0 or score.isnull().any():
-        chosen = random.randint(1, 20)
-        print("Uniform fallback PB:", chosen)
-        return chosen
+        return random.randint(1, 20)
 
     probs = softmax(score)
-    chosen = int(np.random.choice(range(1, 21), p=probs))
-    print("Optimized PB chosen:", chosen)
-    return chosen
+    return int(np.random.choice(range(1, 21), p=probs))
 
-def evolve_sets(base_sets, historical_draws, generations=3):
+def softmax_sampler(scored_sets, temperature=3.0):
+    scores = np.array([s[1] for s in scored_sets])
+    probs = softmax(temperature * scores)
+    selected_index = np.random.choice(len(scored_sets), p=probs)
+    return scored_sets[selected_index][0]
+
+def evolve_sets(base_sets, historical_draws, generations=2):
     population = base_sets[:]
     for _ in range(generations):
         scored = [(s, psi_score(s, historical_draws) + drake_d1_score(s)) for s in population]
@@ -67,12 +61,20 @@ def evolve_sets(base_sets, historical_draws, generations=3):
 def generate_predictions(historical_draws, past_powerballs, num_predictions=200):
     base_candidates = [sorted(random.sample(range(1, 46), 7)) for _ in range(num_predictions * 2)]
     scored = [(s, psi_score(s, historical_draws) + drake_d1_score(s)) for s in base_candidates]
-    top_sets = [softmax_sampler(scored) for _ in range(num_predictions)]
-    evolved_sets = evolve_sets(top_sets, historical_draws)
-    final = [{
-        "Main Numbers": s,
-        "Powerball": optimize_powerball(past_powerballs),
-        "Ψ Score": round(psi_score(s, historical_draws), 3),
-        "D1 Score": round(drake_d1_score(s), 3)
-    } for s in evolved_sets[:num_predictions]]
-    return pd.DataFrame(final)
+    selected_sets = [softmax_sampler(scored) for _ in range(num_predictions)]
+    evolved_sets = evolve_sets(selected_sets, historical_draws)
+
+    predictions = []
+    for s in evolved_sets[:num_predictions]:
+        powerball = optimize_powerball(past_powerballs)
+        record = {
+            "Main Numbers": s,
+            "Powerball": powerball,
+            "Ψ Score": round(psi_score(s, historical_draws), 3),
+            "D1 Score": round(drake_d1_score(s), 3)
+        }
+        predictions.append(record)
+
+    df = pd.DataFrame(predictions)
+    print(df.head())  # Final debug print to confirm integrity
+    return df
